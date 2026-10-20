@@ -1,1 +1,3 @@
 # SV-TPI
+
+Integrante:Thiago Cruz Nombre proyecto: Sistema de turnos: Barber. Idea:Proyecto individual de un sistema web de reserva de turnos para una barbería. La aplicación implementa dos roles de usuario, cliente y administrador, y se estructura con una base de datos relacional en MySQL compuesta por tres tablas principales (usuarios, servicios y turnos) y una tabla auxiliar de estados. El backend está desarrollado en Node.js utilizando Express para la gestión de rutas CRUD, middlewares de autenticación y contraseñas hasheadas. El frontend está construido con React.js e incluye las vistas para el inicio de sesión, registro, el catálogo con opción de reserva de turnos y el panel de gestión y control de los turnos agendados.
