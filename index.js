@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-require("./configuracion/db/conexion")
+require("./configuracion/db/conexion");
 
 const app = express();
 
@@ -23,7 +23,6 @@ app.get('/', (req, res) => {
     res.send('el servidor funciona');
 });
 
-console.log('Rutas cargadas: auth y servicios');
 app.listen(PORT, () => {
-    console.log(`el servidor funciona ${PORT}`);
+    console.log(`el servidor funciona en el puerto ${PORT}`);
 });
