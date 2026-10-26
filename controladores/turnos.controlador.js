@@ -3,7 +3,7 @@ const db = require('../configuracion/db/conexion');
 //trae el turno con el nombre del servicio, del estado y del cliente
 const SQL_TURNOS = `
     SELECT t.id_turno, t.id_usuario, t.id_servicio, t.id_estado, t.fecha_hora,
-           s.nombre AS servicio, e.nombre AS estado, u.nombre AS cliente
+           s.nombre AS servicio, e.nombre_estado AS estado, u.nombre AS cliente
     FROM turnos t
     JOIN servicios s ON t.id_servicio = s.id_servicio
     JOIN estados_turno e ON t.id_estado = e.id_estado
@@ -11,12 +11,12 @@ const SQL_TURNOS = `
 `;
 
 
-const NO_CANCELADO = "id_estado <> (SELECT id_estado FROM estados_turno WHERE nombre = 'Cancelado')";
+const NO_CANCELADO = "id_estado <> (SELECT id_estado FROM estados_turno WHERE nombre_estado = 'Cancelado')";
 
 const ESTADOS_CERRADOS = ['Completado', 'Cancelado'];
 
 const obtenerIdEstado = async (nombre) => {
-    const [estados] = await db.query('SELECT id_estado FROM estados_turno WHERE nombre = ?', [nombre]);
+    const [estados] = await db.query('SELECT id_estado FROM estados_turno WHERE nombre_estado = ?', [nombre]);
     return estados[0].id_estado;
 };
 
@@ -36,7 +36,7 @@ const horarioOcupado = async (fecha_hora, id_turno = 0) => {
 
 const listarEstados = async (req, res) => {
     try {
-        const [estados] = await db.query('SELECT id_estado, nombre FROM estados_turno ORDER BY id_estado');
+        const [estados] = await db.query('SELECT id_estado, nombre_estado FROM estados_turno ORDER BY id_estado');
         res.status(200).json(estados);
     } catch (error) {
         console.error(error);

@@ -1,0 +1,7 @@
+{
+    "name": "Norte - Barber API",
+    "version": "1.0.0",
+    "description": "Sistema web de reserva de turnos para barberia",
+    "title": "Documentación API Norte Barber",
+    "url": "http://localhost:3000"
+}
