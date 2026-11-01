@@ -11,10 +11,10 @@ app.use(express.json());
 const authRutas = require('./rutas/auth.routes');
 app.use('/api/auth', authRutas);
 
-const serviciosRutas = require('./rutas/servicios.routes');
+const serviciosRutas = require('./rutas/servicios');
 app.use('/api/servicios', serviciosRutas);
 
-const turnosRutas = require('./rutas/turnos.routes');
+const turnosRutas = require('./rutas/turnos');
 app.use('/api/turnos', turnosRutas);
 
 const PORT = process.env.PORT || 3000;

@@ -10,7 +10,7 @@ const {
     cancelarTurno,
     eliminarTurno,
     cambiarEstado
-} = require('../controladores/turnos.controlador');
+} = require('../controladores/turnosControlador');
 const { verificarAutenticacion, verificarAdmin } = require('../middlewares/auth.middleware');
 
 router.get('/', verificarAutenticacion, listarTurnos);

@@ -5,7 +5,7 @@ const {
     loginUsuario,
     obtenerPerfil,
     listarUsuarios
-} = require('../controladores/auth.controller');
+} = require('../controladores/authControlador');
 const { verificarAutenticacion, verificarAdmin } = require('../middlewares/auth.middleware');
 
 router.post('/registro', registrarUsuario);

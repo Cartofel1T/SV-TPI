@@ -6,7 +6,7 @@ const {
     crearServicio,
     actualizarServicio,
     eliminarServicio
-} = require('../controladores/servicios.controlador');
+} = require('../controladores/serviciosControlador');
 const { verificarAutenticacion, verificarAdmin } = require('../middlewares/auth.middleware');
 
 router.get('/', obtenerServicios);
