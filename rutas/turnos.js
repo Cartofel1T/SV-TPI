@@ -3,7 +3,7 @@ const router = express.Router();
 const {
     listarEstados,
     listarTurnos,
-    horariosOcupados,
+    horariosDisponibles,
     obtenerTurno,
     crearTurno,
     actualizarTurno,
@@ -15,7 +15,7 @@ const { verificarAutenticacion, verificarAdmin } = require('../middlewares/auth.
 
 router.get('/', verificarAutenticacion, listarTurnos);
 router.get('/estados', verificarAutenticacion, listarEstados);
-router.get('/ocupados', verificarAutenticacion, horariosOcupados);
+router.get('/disponibles', verificarAutenticacion, horariosDisponibles);
 router.get('/:id', verificarAutenticacion, obtenerTurno);
 router.post('/', verificarAutenticacion, crearTurno);
 router.put('/:id', verificarAutenticacion, actualizarTurno);

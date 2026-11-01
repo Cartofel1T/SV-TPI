@@ -1,19 +1,20 @@
 const db = require('../configuracion/db/conexion');
 
-//trae el turno con el nombre del servicio, del estado y del cliente
 const SQL_TURNOS = `
     SELECT t.id_turno, t.id_usuario, t.id_servicio, t.id_estado, t.fecha_hora,
-           s.nombre AS servicio, e.nombre_estado AS estado, u.nombre AS cliente
+           s.nombre AS servicio, s.duracion, e.nombre_estado AS estado, u.nombre AS cliente
     FROM turnos t
     JOIN servicios s ON t.id_servicio = s.id_servicio
     JOIN estados_turno e ON t.id_estado = e.id_estado
     JOIN usuarios u ON t.id_usuario = u.id_usuario
 `;
 
-
-const NO_CANCELADO = "id_estado <> (SELECT id_estado FROM estados_turno WHERE nombre_estado = 'Cancelado')";
-
+const NO_CANCELADO = "t.id_estado <> (SELECT id_estado FROM estados_turno WHERE nombre_estado = 'Cancelado')";
 const ESTADOS_CERRADOS = ['Completado', 'Cancelado'];
+
+// La atención va de 10:00 a 19:00, medido en minutos desde las 00:00
+const HORA_APERTURA = 10 * 60;
+const HORA_CIERRE = 19 * 60;
 
 const obtenerIdEstado = async (nombre) => {
     const [estados] = await db.query('SELECT id_estado FROM estados_turno WHERE nombre_estado = ?', [nombre]);
@@ -24,15 +25,51 @@ const esDuenoOAdmin = (turno, usuario) => {
     return usuario.rol === 'admin' || turno.id_usuario === usuario.id;
 };
 
-
-const horarioOcupado = async (fecha_hora, id_turno = 0) => {
-    const [ocupados] = await db.query(
-        `SELECT id_turno FROM turnos WHERE fecha_hora = ? AND id_turno != ? AND ${NO_CANCELADO}`,
-        [fecha_hora, id_turno]
-    );
-    return ocupados.length > 0;
+// Devuelve la duración en minutos del servicio, o null si no existe
+const obtenerDuracion = async (id_servicio) => {
+    const [servicios] = await db.query('SELECT duracion FROM servicios WHERE id_servicio = ?', [id_servicio]);
+    return servicios.length ? servicios[0].duracion : null;
 };
 
+// "2026-11-03 10:30:00" -> 630
+const minutosDelDia = (fechaHora) => {
+    const [horas, minutos] = fechaHora.slice(11, 16).split(':').map(Number);
+    return horas * 60 + minutos;
+};
+
+// Devuelve un mensaje de error si el horario no sirve, o null si está bien
+const validarHorario = (fecha_hora, duracion) => {
+    const inicio = new Date(fecha_hora.replace(' ', 'T'));
+
+    if (isNaN(inicio)) return 'fecha y hora no válidas';
+    if (inicio <= new Date()) return 'no podés reservar en el pasado';
+    if (inicio.getDay() === 0) return 'los domingos estamos cerrados';
+    if (inicio.getMinutes() % 30 !== 0) return 'los turnos empiezan en punto o y media';
+
+    const minutosInicio = inicio.getHours() * 60 + inicio.getMinutes();
+    const minutosFin = minutosInicio + Number(duracion);
+
+    if (minutosInicio < HORA_APERTURA || minutosFin > HORA_CIERRE) {
+        return 'ese horario está fuera de la atención (10:00 a 19:00)';
+    }
+
+    return null;
+};
+
+// Revisa si otro turno activo se superpone con el intervalo nuevo
+const hayConflicto = async (fecha_hora, duracion, id_turno = 0) => {
+    const [choques] = await db.query(
+        `SELECT t.id_turno
+         FROM turnos t
+         JOIN servicios s ON t.id_servicio = s.id_servicio
+         WHERE t.id_turno <> ?
+         AND ${NO_CANCELADO}
+         AND t.fecha_hora < DATE_ADD(?, INTERVAL ? MINUTE)
+         AND DATE_ADD(t.fecha_hora, INTERVAL s.duracion MINUTE) > ?`,
+        [id_turno, fecha_hora, duracion, fecha_hora]
+    );
+    return choques.length > 0;
+};
 
 const listarEstados = async (req, res) => {
     try {
@@ -64,23 +101,56 @@ const listarTurnos = async (req, res) => {
     }
 };
 
-const horariosOcupados = async (req, res) => {
+// GET /api/turnos/disponibles?fecha=2026-11-03&id_servicio=1
+const horariosDisponibles = async (req, res) => {
     try {
-        const fecha = req.query.fecha;
+        const { fecha, id_servicio } = req.query;
 
-        if (!fecha) {
-            return res.status(400).json({ error: 'falta la fecha' });
+        if (!fecha || !id_servicio) {
+            return res.status(400).json({ error: 'faltan datos' });
         }
 
-        const [filas] = await db.query(
-            `SELECT DATE_FORMAT(fecha_hora, '%H:%i') AS hora FROM turnos WHERE DATE(fecha_hora) = ? AND ${NO_CANCELADO}`,
+        const duracion = await obtenerDuracion(id_servicio);
+        if (duracion === null) {
+            return res.status(404).json({ error: 'servicio no encontrado' });
+        }
+
+        const [anio, mes, dia] = fecha.split('-').map(Number);
+        const cerrado = new Date(anio, mes - 1, dia).getDay() === 0;
+
+        const [ocupados] = await db.query(
+            `SELECT t.fecha_hora, s.duracion
+             FROM turnos t
+             JOIN servicios s ON t.id_servicio = s.id_servicio
+             WHERE DATE(t.fecha_hora) = ? AND ${NO_CANCELADO}`,
             [fecha]
         );
 
-        res.status(200).json(filas.map((fila) => fila.hora));
+        const intervalosOcupados = ocupados.map((turno) => {
+            const inicio = minutosDelDia(turno.fecha_hora);
+            return { inicio, fin: inicio + Number(turno.duracion) };
+        });
+
+        const ahora = new Date();
+        const horarios = [];
+
+        for (let minutos = HORA_APERTURA; minutos < HORA_CIERRE; minutos += 30) {
+            const hora = `${String(Math.floor(minutos / 60)).padStart(2, '0')}:${String(minutos % 60).padStart(2, '0')}`;
+            const fin = minutos + Number(duracion);
+
+            const yaPaso = new Date(`${fecha}T${hora}:00`) <= ahora;
+            const choca = intervalosOcupados.some((i) => i.inicio < fin && i.fin > minutos);
+
+            horarios.push({
+                hora,
+                disponible: !cerrado && !yaPaso && fin <= HORA_CIERRE && !choca
+            });
+        }
+
+        res.status(200).json(horarios);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'error al obtener horarios ocupados' });
+        res.status(500).json({ error: 'error al obtener horarios disponibles' });
     }
 };
 
@@ -113,8 +183,18 @@ const crearTurno = async (req, res) => {
             return res.status(400).json({ error: 'faltan datos' });
         }
 
-        if (await horarioOcupado(fecha_hora)) {
-            return res.status(400).json({ error: 'ya esta en uso, elegi otro.' });
+        const duracion = await obtenerDuracion(id_servicio);
+        if (duracion === null) {
+            return res.status(404).json({ error: 'servicio no encontrado' });
+        }
+
+        const errorHorario = validarHorario(fecha_hora, duracion);
+        if (errorHorario) {
+            return res.status(400).json({ error: errorHorario });
+        }
+
+        if (await hayConflicto(fecha_hora, duracion)) {
+            return res.status(400).json({ error: 'ese horario ya está ocupado, elegí otro' });
         }
 
         const id_estado = await obtenerIdEstado('Pendiente');
@@ -149,8 +229,18 @@ const actualizarTurno = async (req, res) => {
         const nuevoServicio = req.body.id_servicio || turnoActual.id_servicio;
         const nuevaFechaHora = req.body.fecha_hora || turnoActual.fecha_hora;
 
-        if (req.body.fecha_hora && await horarioOcupado(nuevaFechaHora, id_turno)) {
-            return res.status(400).json({ error: 'ya esta en uso, elegi otro.' });
+        const duracion = await obtenerDuracion(nuevoServicio);
+        if (duracion === null) {
+            return res.status(404).json({ error: 'servicio no encontrado' });
+        }
+
+        const errorHorario = validarHorario(nuevaFechaHora, duracion);
+        if (errorHorario) {
+            return res.status(400).json({ error: errorHorario });
+        }
+
+        if (await hayConflicto(nuevaFechaHora, duracion, id_turno)) {
+            return res.status(400).json({ error: 'ese horario ya está ocupado, elegí otro' });
         }
 
         await db.query(
@@ -247,7 +337,7 @@ const cambiarEstado = async (req, res) => {
 module.exports = {
     listarEstados,
     listarTurnos,
-    horariosOcupados,
+    horariosDisponibles,
     obtenerTurno,
     crearTurno,
     actualizarTurno,

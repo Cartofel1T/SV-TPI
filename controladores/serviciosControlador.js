@@ -28,15 +28,19 @@ const obtenerServicio = async (req, res) => {
 
 const crearServicio = async (req, res) => {
     try {
-        const { nombre, descripcion, precio } = req.body;
+        const { nombre, descripcion, precio, duracion } = req.body;
 
-        if (!nombre || precio === undefined) {
+        if (!nombre || precio === undefined || !duracion) {
             return res.status(400).json({ error: 'faltan datos' });
         }
 
+        if (Number(duracion) <= 0) {
+            return res.status(400).json({ error: 'la duracion tiene que ser mayor a 0' });
+        }
+
         const [resultado] = await db.query(
-            'INSERT INTO servicios (nombre, descripcion, precio) VALUES (?, ?, ?)',
-            [nombre, descripcion || '', precio]
+            'INSERT INTO servicios (nombre, descripcion, precio, duracion) VALUES (?, ?, ?, ?)',
+            [nombre, descripcion || '', precio, duracion]
         );
 
         res.status(201).json({ mensaje: 'servicio creado', id: resultado.insertId });
@@ -60,10 +64,15 @@ const actualizarServicio = async (req, res) => {
         const nuevoNombre = req.body.nombre || servicioActual.nombre;
         const nuevaDescripcion = req.body.descripcion ?? servicioActual.descripcion;
         const nuevoPrecio = req.body.precio ?? servicioActual.precio;
+        const nuevaDuracion = req.body.duracion ?? servicioActual.duracion;
+
+        if (Number(nuevaDuracion) <= 0) {
+            return res.status(400).json({ error: 'la duracion tiene que ser mayor a 0' });
+        }
 
         await db.query(
-            'UPDATE servicios SET nombre = ?, descripcion = ?, precio = ? WHERE id_servicio = ?',
-            [nuevoNombre, nuevaDescripcion, nuevoPrecio, id_servicio]
+            'UPDATE servicios SET nombre = ?, descripcion = ?, precio = ?, duracion = ? WHERE id_servicio = ?',
+            [nuevoNombre, nuevaDescripcion, nuevoPrecio, nuevaDuracion, id_servicio]
         );
 
         res.status(200).json({ mensaje: 'servicio actualizado' });

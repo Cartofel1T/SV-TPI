@@ -34,12 +34,13 @@ const loginUsuario = async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id_usuario: usuario.id_usuario, rol: usuario.rol },
+            { id: usuario.id_usuario, rol: usuario.rol },
             process.env.JWT_SECRET,
             { expiresIn: '4h' }
         );
         res.json({ token, nombre: usuario.nombre, rol: usuario.rol });
     } catch (error) {
+        console.error('ERROR EN LOGIN:', error);
         res.status(500).json({ error: 'Error al iniciar sesión' });
     }
 };
@@ -48,11 +49,11 @@ const obtenerPerfil = async (req, res) => {
     try {
         const [resultado] = await db.query(
             'SELECT id_usuario, nombre, email, rol FROM usuarios WHERE id_usuario = ?',
-            [req.usuario.id_usuario]
+            [req.usuario.id]
         );
         res.json(resultado[0]);
     } catch (error) {
-        res.status(500).json({ error: 'Error al obtener el perfil' });
+        res.status(500).json({ error: 'error al obtener el perfil' });
     }
 };
 
