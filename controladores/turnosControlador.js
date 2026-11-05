@@ -214,10 +214,14 @@ const crearTurno = async (req, res) => {
 const actualizarTurno = async (req, res) => {
     try {
         const id_turno = req.params.id;
-        const [turnos] = await db.query('SELECT * FROM turnos WHERE id_turno = ?', [id_turno]);
+        const [turnos] = await db.query(SQL_TURNOS + ' WHERE t.id_turno = ?', [id_turno]);
 
         if (turnos.length === 0) {
             return res.status(404).json({ error: 'turno no encontrado' });
+        }
+
+        if (ESTADOS_CERRADOS.includes(turnos[0].estado)) {
+            return res.status(400).json({ error: 'este turno ya no se puede modificar' });
         }
 
         const turnoActual = turnos[0];
@@ -288,6 +292,10 @@ const eliminarTurno = async (req, res) => {
     try {
         const id_turno = req.params.id;
         const [turnos] = await db.query('SELECT * FROM turnos WHERE id_turno = ?', [id_turno]);
+
+        if (req.usuario.rol !== 'admin') {
+            return res.status(403).json({ error: 'solo el administrador puede eliminar turnos' });
+        }
 
         if (turnos.length === 0) {
             return res.status(404).json({ error: 'turno no encontrado' });
