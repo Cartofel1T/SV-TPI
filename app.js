@@ -17,11 +17,20 @@ app.use('/api/servicios', serviciosRutas);
 const turnosRutas = require('./rutas/turnos');
 app.use('/api/turnos', turnosRutas);
 
-const PORT = process.env.PORT || 3000;
-
 app.get('/', (req, res) => {
     res.send('el servidor funciona');
 });
+
+app.use((req, res) => {
+    res.status(404).json({ error: 'ruta no encontrada' });
+});
+
+app.use((err, req, res, next) => {
+    console.error(err);
+    res.status(500).json({ error: 'error del servidor' });
+});
+
+const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
     console.log(`el servidor funciona en el puerto ${PORT}`);

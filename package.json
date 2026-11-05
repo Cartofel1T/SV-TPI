@@ -2,8 +2,10 @@
   "name": "bk-tpi",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
+    "start": "node app.js",
+    "dev": "node --watch app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -17,7 +19,6 @@
   },
   "homepage": "https://github.com/Cartofel1T/BK-TPI#readme",
   "dependencies": {
-    "@damianegreco/hashpass": "^2.0.5",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^18.0.7",
